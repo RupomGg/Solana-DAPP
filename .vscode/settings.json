@@ -1,0 +1,14 @@
+{
+    "cSpell.words": [
+        "lamports",
+        "Pubkeys",
+        "Solana",
+        "Solona"
+    ],
+    "cSpell.ignoreWords": [
+        "DepositeIcoATA",
+        "LAMPORTS_PER_TOKEN",
+        "deposite_ico_in_ata",
+        "solana_program"
+    ]
+}
