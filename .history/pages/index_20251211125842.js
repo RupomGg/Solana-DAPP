@@ -25,39 +25,16 @@ export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [tokenMetadata, setTokenMetadata] = useState(null);
   const [userTokenBalance, setUserTokenBalance] = useState(0);
-  const [solPrice, setSolPrice] = useState(null);
-  const [userList, setUserList] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
 
   const addLog = (message, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
-    setLogs(prev => [{ message, type, timestamp }, ...prev]);
+    setLogs(prev => [...prev, { message, type, timestamp }]);
   };
 
   useEffect(() => {
     setMounted(true);
     fetchTokenMetadata();
   }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-
-    const fetchSolPrice = async () => {
-      try {
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
-        const data = await response.json();
-        if (data?.solana?.usd) {
-          setSolPrice(data.solana.usd);
-        }
-      } catch (error) {
-        console.error('Error fetching SOL price:', error);
-      }
-    };
-
-    fetchSolPrice();
-    const interval = setInterval(fetchSolPrice, 60_000);
-    return () => clearInterval(interval);
-  }, [mounted]);
 
   useEffect(() => {
     if (wallet.connected) {
@@ -194,52 +171,6 @@ export default function Home() {
         decimals: 6,
         image: '/token_icon.png',
       });
-    }
-  };
-
-  const fetchAllTokenHolders = async () => {
-    try {
-      setLoadingUsers(true);
-      addLog('> SCANNING FOR TOKEN HOLDERS...', 'info');
-
-      // Use getTokenLargestAccounts to get top token holders
-      // This works with Token-2022 and doesn't require secondary indexes
-      const largestAccounts = await connection.getTokenLargestAccounts(ICO_MINT);
-
-      const decimals = tokenMetadata?.decimals || 9;
-
-      // Fetch owner info for each account
-      const holdersPromises = largestAccounts.value.map(async (accountInfo) => {
-        try {
-          const accountData = await connection.getAccountInfo(accountInfo.address);
-          if (!accountData) return null;
-
-          // Owner is at bytes 32-64 in token account
-          const owner = new PublicKey(accountData.data.slice(32, 64));
-          const rawBalance = new BN(accountInfo.amount, 10).toNumber();
-          const balance = rawBalance / Math.pow(10, decimals);
-
-          return {
-            address: owner.toBase58(),
-            balance: balance,
-          };
-        } catch (err) {
-          console.error('Error fetching account:', err);
-          return null;
-        }
-      });
-
-      const holdersData = await Promise.all(holdersPromises);
-      const holders = holdersData.filter(holder => holder !== null && holder.balance > 0);
-
-      setUserList(holders);
-      addLog(`> FOUND ${holders.length} TOKEN HOLDERS`, 'success');
-    } catch (error) {
-      console.error('Error fetching token holders:', error);
-      addLog(`> ERROR FETCHING HOLDERS: ${error.message}`, 'error');
-      setUserList([]);
-    } finally {
-      setLoadingUsers(false);
     }
   };
 
@@ -510,7 +441,24 @@ export default function Home() {
             </div>
             <div className={styles.headerTitle}>BLOCKCHAIN ROBOT CONTROL TERMINAL v2.0</div>
           </div>
-
+          <div className={styles.asciiArt}>
+            <pre>{`
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║                  SOLANA ICO VENDING ROBOT                     ║
+    ║                                                               ║
+    ║              ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄           ║
+    ║             ▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌          ║
+    ║              ▀▀▀▀█░█▀▀▀▀ ▐░█▀▀▀▀▀▀▀█░▌▐░█▀▀▀▀▀▀▀█░▌          ║
+    ║                 ▐░▌     ▐░▌       ▐░▌▐░▌       ▐░▌          ║
+    ║                 ▐░▌     ▐░▌       ▐░▌▐░▌       ▐░▌          ║
+    ║                 ▐░▌     ▐░▌       ▐░▌▐░▌       ▐░▌          ║
+    ║                 ▐░▌     ▐░█▄▄▄▄▄▄▄█░▌▐░▌       ▐░▌          ║
+    ║                 ▐░▌     ▐░░░░░░░░░░░▌▐░▌       ▐░▌          ║
+    ║                  ▀       ▀▀▀▀▀▀▀▀▀▀▀  ▀         ▀           ║
+    ║                                                               ║
+    ╚═══════════════════════════════════════════════════════════════╝
+          `}</pre>
+          </div>
           <div className={styles.content}>
             <div className={styles.storyBox}>
               <div className={styles.storyTitle}>
@@ -538,14 +486,14 @@ export default function Home() {
             <span className={styles.dot} style={{ background: '#ffbd2e' }}></span>
             <span className={styles.dot} style={{ background: '#27c93f' }}></span>
           </div>
-          <div className={styles.headerTitle}>SOLANA ICO DAPP v.001</div>
+          <div className={styles.headerTitle}>BLOCKCHAIN ROBOT CONTROL TERMINAL v2.0</div>
           <div className={styles.headerRight}>
-            <WalletMultiButton className={styles.walletButton} />
+            <WalletMultiButton />
           </div>
         </div>
 
         <div className={styles.mobileWallet}>
-          <WalletMultiButton className={styles.walletButton} />
+          <WalletMultiButton />
         </div>
 
         <div className={styles.content}>
@@ -567,26 +515,10 @@ export default function Home() {
 
               {wallet.connected && (
                 <div className={styles.balanceCard}>
-                  <div className={styles.balanceContent}>
-                    <div className={styles.tokenInfo}>
-                      {tokenMetadata?.image && (
-                        <img
-                          src={tokenMetadata.image}
-                          alt={tokenMetadata.symbol}
-                          className={styles.balanceTokenImage}
-                        />
-                      )}
-                      <div className={styles.balanceTokenName}>
-                        {tokenMetadata?.name || 'Token'}
-                      </div>
-                    </div>
-                    <div className={styles.balanceInfo}>
-                      <div className={styles.balanceLabel}>YOUR BALANCE</div>
-                      <div className={styles.balanceValue}>
-                        {userTokenBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
-                        {tokenMetadata?.symbol || 'TOKENS'}
-                      </div>
-                    </div>
+                  <div className={styles.balanceLabel}>YOUR BALANCE</div>
+                  <div className={styles.balanceValue}>
+                    {userTokenBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+                    {tokenMetadata?.symbol || 'TOKENS'}
                   </div>
                 </div>
               )}
@@ -594,173 +526,85 @@ export default function Home() {
 
             <div className={`${styles.panelSection} ${styles.splitRow}`}>
               <div className={styles.robotSection}>
-                <div className={isAdmin ? styles.adminRobotDisplay : styles.robotDisplay}>
+                <div className={styles.robotDisplay}>
                   <img
                     src="/robot_vending_machine.png"
                     alt="Token Vending Robot"
                     className={styles.robotImage}
                   />
+                  <div className={styles.robotFace}>
+                    <img src="/robot_face_icon.png" alt="Robot Face" />
+                  </div>
                 </div>
 
-                {/* Token Holders List - Only for Admin */}
-                {wallet.connected && isAdmin && icoData && (
-                  <div className={styles.userListContainer}>
-                    <div className={styles.userListHeader}>
-                      <span>👥 TOKEN HOLDERS</span>
-                      <button
-                        onClick={fetchAllTokenHolders}
-                        className={styles.refreshButton}
-                        disabled={loadingUsers}
-                      >
-                        {loadingUsers ? '⏳' : '🔄'}
-                      </button>
-                    </div>
-                    <div className={styles.userListScroll}>
-                      {loadingUsers ? (
-                        <div className={styles.userListEmpty}>
-                          <p>&gt; Scanning blockchain...</p>
-                        </div>
-                      ) : userList.length > 0 ? (
-                        userList.map((user, idx) => (
-                          <div key={idx} className={styles.userItem}>
-                            <span className={styles.userAddress}>
-                              {user.address.slice(0, 8)}...{user.address.slice(-6)}
-                            </span>
-                            <span className={styles.userBalance}>
-                              {user.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
-                              {tokenMetadata?.symbol || 'TOKENS'}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className={styles.userListEmpty}>
-                          <p>&gt; No token holders found</p>
-                          <p>&gt; Click refresh to scan</p>
-                        </div>
-                      )}
-                    </div>
+                <div className={styles.tokenBadge}>
+                  {tokenMetadata?.image && (
+                    <img
+                      src={tokenMetadata.image}
+                      alt={tokenMetadata.symbol}
+                      className={styles.tokenImage}
+                    />
+                  )}
+                  <div className={styles.tokenName}>
+                    {tokenMetadata?.name || 'SPARK TOKEN'}
                   </div>
-                )}
+                </div>
               </div>
 
               <div className={styles.vendingMachine}>
-                {isAdmin ? (
-                  <>
-                    <div className={styles.adminBrainHeader}>
-                      <div className={styles.machineTitle}>
-                        THE BRAIN
-                      </div>
+                <div className={styles.machineTitle}>
+                  TOKEN DISPENSER
+                </div>
 
-                      <div className={styles.storyBox}>
-                        <div className={styles.storyText}>
-                          <p>&gt; Welcome Back, Radwan</p>
-                          <p>&gt; Your full inspection is ready !</p>
-                          <p className="text-info">&gt; ADMIN MODE ACTIVE!</p>
-                          <p className="text-info" style={{ marginTop: '10px' }}>&gt; {icoData.available.toLocaleString()} tokens available.</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Deposit Tokens Section - Admin Only - Aligned with Token Holders */}
-                    {icoData && (
-                      <div className={styles.depositContainer}>
-                        <div className={styles.depositHeader}>
-                          <span>💰 DEPOSIT TOKENS</span>
-                        </div>
-                        <div className={styles.depositContent}>
-                          <label className={styles.inputLabel}>
-                            RESTOCK AMOUNT:
-                            <input
-                              type="number"
-                              value={depositAmount}
-                              onChange={(e) => setDepositAmount(parseInt(e.target.value))}
-                              className={styles.input}
-                              min="1"
-                            />
-                          </label>
-                          <button
-                            onClick={depositTokens}
-                            disabled={loading}
-                            className={styles.btnAdmin}
-                          >
-                            {loading ? '> RESTOCKING...' : `> DEPOSIT ${depositAmount} TOKENS`}
-                          </button>
-                        </div>
-                      </div>
+                <div className={styles.storyBox}>
+                  <div className={styles.storyText}>
+                    {!wallet.connected ? (
+                      <>
+                        <p>&gt; Welcome to the Token Vending Robot.</p>
+                        <p>&gt; Scan your DIGITAL ID BADGE to begin.</p>
+                        <p className="pulse">&gt; Awaiting identification...</p>
+                      </>
+                    ) : !icoData ? (
+                      <>
+                        <p>&gt; ID: {wallet.publicKey.toString().slice(0, 12)}...</p>
+                        <p className="text-warning">&gt; System not initialized.</p>
+                        <p>&gt; Admin must power on first.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>&gt; Welcome back, Customer!</p>
+                        <p>&gt; Robot is ready to dispense tokens.</p>
+                        <p>&gt; {icoData.available.toLocaleString()} tokens available.</p>
+                        {isAdmin && <p className="text-info">&gt; ADMIN MODE ACTIVE</p>}
+                      </>
                     )}
+                  </div>
+                </div>
 
-                    {!icoData && (
-                      <div className={styles.storyBox} style={{ marginTop: '20px' }}>
-                        <div className={styles.storyText}>
-                          <p className="text-warning">&gt; System not initialized. Power on below.</p>
-                        </div>
-                        <button
-                          onClick={initializeICO}
-                          disabled={loading}
-                          className={styles.btnAdmin}
-                          style={{ marginTop: '15px' }}
-                        >
-                          {loading ? '> INITIALIZING...' : '> INITIALIZE ROBOT SYSTEM'}
-                        </button>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className={styles.machineTitle}>
-                      TOKEN DISPENSER
+                {wallet.connected && icoData && icoData.available > 0 && !isAdmin && (
+                  <div className={styles.buySection}>
+                    <h3>🪙 BUY TOKENS</h3>
+                    <div className={styles.inputGroup}>
+                      <label>Quantity (Cost: 0.001 SOL per token)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max={Math.min(1000, icoData.available)}
+                        value={buyAmount}
+                        onChange={(e) => setBuyAmount(parseInt(e.target.value) || 1)}
+                      />
                     </div>
-
-                    <div className={styles.storyBox}>
-                      <div className={styles.storyText}>
-                        {!wallet.connected ? (
-                          <>
-                            <p>&gt; Welcome to the Token Vending Robot.</p>
-                            <p>&gt; Scan your DIGITAL ID BADGE to begin.</p>
-                            <p className="pulse">&gt; Awaiting identification...</p>
-                          </>
-                        ) : !icoData ? (
-                          <>
-                            <p>&gt; ID: {wallet.publicKey.toString().slice(0, 12)}...</p>
-                            <p className="text-warning">&gt; System not initialized.</p>
-                            <p>&gt; Admin must power on first.</p>
-                          </>
-                        ) : (
-                          <>
-                            <p>&gt; Welcome back, Customer!</p>
-                            <p>&gt; Robot is ready to dispense tokens.</p>
-                            <p>&gt; {icoData.available.toLocaleString()} tokens available.</p>
-                          </>
-                        )}
-                      </div>
+                    <div className={styles.costHelper}>
+                      Total Cost: {(buyAmount * 0.001).toFixed(3)} SOL
                     </div>
-
-                    {wallet.connected && icoData && icoData.available > 0 && (
-                      <div className={styles.buySection}>
-                        <h3>🪙 BUY TOKENS</h3>
-                        <div className={styles.inputGroup}>
-                          <label>Quantity (Cost: 0.001 SOL per token)</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max={Math.min(1000, icoData.available)}
-                            value={buyAmount}
-                            onChange={(e) => setBuyAmount(parseInt(e.target.value) || 1)}
-                          />
-                        </div>
-                        <div className={styles.costHelper}>
-                          Total Cost: {(buyAmount * 0.001).toFixed(3)} SOL
-                        </div>
-                        <button
-                          className={styles.buyButton}
-                          onClick={buyTokens}
-                          disabled={loading || buyAmount > icoData.available}
-                        >
-                          {loading ? '⏳ PROCESSING...' : `🚀 BUY ${buyAmount} TOKENS`}
-                        </button>
-                      </div>
-                    )}
-                  </>
+                    <button
+                      className={styles.buyButton}
+                      onClick={buyTokens}
+                      disabled={loading || buyAmount > icoData.available}
+                    >
+                      {loading ? '⏳ PROCESSING...' : `🚀 BUY ${buyAmount} TOKENS`}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -795,7 +639,52 @@ export default function Home() {
               </div>
             )}
 
+            {wallet.connected && isAdmin && (
+              <div className={`${styles.card} ${styles.adminBox}`}>
+                <div className={styles.sectionTitle}>
+                  <span className="blink">▶</span> ADMIN CONTROL PANEL [RESTRICTED]
+                </div>
+                <div className={styles.adminContent}>
+                  <div className={styles.adminStory}>
+                    <p className="text-info">&gt; Manager credentials verified.</p>
+                    <p>&gt; Maintenance functions unlocked.</p>
+                  </div>
 
+                  {!icoData ? (
+                    <div className={styles.adminAction}>
+                      <p className="text-warning">&gt; System not initialized. Power on below.</p>
+                      <button
+                        onClick={initializeICO}
+                        disabled={loading}
+                        className={styles.btnAdmin}
+                      >
+                        {loading ? '> INITIALIZING...' : '> INITIALIZE ROBOT SYSTEM'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={styles.adminAction}>
+                      <label className={styles.inputLabel}>
+                        RESTOCK AMOUNT:
+                        <input
+                          type="number"
+                          value={depositAmount}
+                          onChange={(e) => setDepositAmount(parseInt(e.target.value))}
+                          className={styles.input}
+                          min="1"
+                        />
+                      </label>
+                      <button
+                        onClick={depositTokens}
+                        disabled={loading}
+                        className={styles.btnAdmin}
+                      >
+                        {loading ? '> RESTOCKING...' : `> DEPOSIT ${depositAmount} TOKENS`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className={`${styles.card} ${styles.logsBox}`}>
               <div className={styles.sectionTitle}>
@@ -814,9 +703,7 @@ export default function Home() {
 
         {/* Footer */}
         <div className={styles.footer}>
-          <span className={styles.footerText}>
-            <span className="blink">█</span> SOANA ICO DAPP v.001 | POWERED BY SOLANA | STATUS: OPERATIONAL | SOL: {solPrice ? solPrice.toFixed(2) : '--.--'} USD
-          </span>
+          <span className="blink">█</span> BLOCKCHAIN ROBOT OS v2.0 | POWERED BY SOLANA | STATUS: OPERATIONAL
         </div>
       </div>
     </div>

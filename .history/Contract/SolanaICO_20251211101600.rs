@@ -1,9 +1,7 @@
 use anchor_lang::prelude::*;
-// Token-2022 Update: Using token_interface instead of token module
-// token_interface works with BOTH Token-2022 AND legacy SPL tokens for maximum compatibility
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_spl::token::{self, Mint, Token, TokenAccount}; //use is import in Rust
 
-declare_id!("8N2Vo6dFDUTPFz5waGuQfYFPZeS31ZeXgRcv3WqKptta"); // Your current program ID - update after redeployment
+declare_id!("9QXvh533pZyzhUyD6Qd8gw6h3QBc2FnyqbMCbB1AjScm"); // it will generate automatically in Solona playground
 
 #[error_code]
 pub enum ErrorCode {
@@ -34,21 +32,17 @@ pub mod ico {
             .checked_mul(TOKEN_DECIMALS)
             .ok_or(ErrorCode::Overflow)?;
 
-        // Token-2022 Update: Using TransferChecked instead of Transfer
-        // TransferChecked verifies the mint address and decimals for better security
         let cross_program_invocation_context = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
             // asking token program to do the transfer
-            anchor_spl::token_interface::TransferChecked {
+            token::Transfer {
                 from: ctx.accounts.ico_ata_for_admin.to_account_info(), // from admin account
-                to: ctx.accounts.ico_ata_for_ico_program.to_account_info(), // to the contract account
-                authority: ctx.accounts.admin.to_account_info(), // signed by admin
-                mint: ctx.accounts.ico_mint.to_account_info(), // Token-2022 requires mint verification
+                to: ctx.accounts.ico_ata_for_ico_program.to_account_info(), // to  the contract account
+                authority: ctx.accounts.admin.to_account_info(),            //signed by admin
             },
         );
 
-        // transfer_checked requires decimals parameter (9 is standard for most Solana tokens)
-        anchor_spl::token_interface::transfer_checked(cross_program_invocation_context, raw_amount, 9)?;
+        token::transfer(cross_program_invocation_context, raw_amount)?;
         msg!("Transferred {} ICO tokens to Program ATA", ico_amount);
 
         // its a logbook of the contract , that contains admin address , total tokens and tokens sold
@@ -72,19 +66,16 @@ pub mod ico {
             .checked_mul(TOKEN_DECIMALS)
             .ok_or(ErrorCode::Overflow)?;
 
-        // Token-2022 Update: Using TransferChecked for additional token deposits
         let cross_program_invocation_context = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            anchor_spl::token_interface::TransferChecked {
-                from: ctx.accounts.ico_ata_for_admin.to_account_info(), // from admin account
-                to: ctx.accounts.ico_ata_for_ico_program.to_account_info(), // to the contract account
-                authority: ctx.accounts.admin.to_account_info(), // signed by admin
-                mint: ctx.accounts.ico_mint.to_account_info(), // Token-2022 requires mint verification
+            token::Transfer {
+                from: ctx.accounts.ico_ata_for_admin.to_account_info(),
+                to: ctx.accounts.ico_ata_for_ico_program.to_account_info(),
+                authority: ctx.accounts.admin.to_account_info(),
             },
         );
 
-        // transfer_checked with 9 decimals (standard)
-        anchor_spl::token_interface::transfer_checked(cross_program_invocation_context, raw_amount, 9)?;
+        token::transfer(cross_program_invocation_context, raw_amount)?;
 
         let data = &mut ctx.accounts.data;
         data.total_tokens += ico_amount;
@@ -139,21 +130,17 @@ pub mod ico {
 
         let signer = [&seeds[..]]; //This variable signer basically says: "I don't have a signature, but I know the secret password combination!
 
-        // Token-2022 Update: Using TransferChecked for buying tokens
-        // new_with_signer is used because the program account signs (using PDA)
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
-            anchor_spl::token_interface::TransferChecked {
+            token::Transfer {
                 from: ctx.accounts.ico_ata_for_ico_program.to_account_info(), // from program account
-                to: ctx.accounts.ico_ata_for_user.to_account_info(), // to user account
-                authority: ctx.accounts.ico_ata_for_ico_program.to_account_info(), // signed by program account (PDA)
-                mint: ctx.accounts.ico_mint.to_account_info(), // Token-2022 requires mint verification
+                to: ctx.accounts.ico_ata_for_user.to_account_info(),          // to user account
+                authority: ctx.accounts.ico_ata_for_ico_program.to_account_info(), // signed by program account
             },
-            &signer, // PDA signer seeds
+            &signer,
         );
 
-        // transfer_checked with 9 decimals - tokens are transferred to user and subtracted from program account automatically
-        anchor_spl::token_interface::transfer_checked(cpi_ctx, raw_amount, 9)?;
+        token::transfer(cpi_ctx, raw_amount)?; // here the sold tokens are transferred to the user and sold token get subtracted from program account automatically
 
         //UPDATE DATA
         let data = &mut ctx.accounts.data;
@@ -177,7 +164,7 @@ pub mod ico {
             token::mint=ico_mint,
             token::authority=ico_ata_for_ico_program, // the program will be the authority of this account Self-custody via PDA
         )]
-        pub ico_ata_for_ico_program: InterfaceAccount<'info, TokenAccount>,
+        pub ico_ata_for_ico_program: Account<'info, TokenAccount>,
 
         #[account(
             init, 
@@ -192,18 +179,16 @@ pub mod ico {
         #[account(
             address = ICO_MINT_ADDRESS.parse::<Pubkey>().unwrap(), //Ensure the account passed here MATCHES this specific hardcoded address.
         )]
-        pub ico_mint: InterfaceAccount<'info, Mint>, // the mint address of the ICO token
+        pub ico_mint: Account<'info, Mint>, // the mint address of the ICO token
 
         #[account(mut)]
-        pub ico_ata_for_admin: InterfaceAccount<'info, TokenAccount>, // admin's ATA from which ICO tokens will be transferred to program ATA
+        pub ico_ata_for_admin: Account<'info, TokenAccount>, // admin's ATA from which ICO tokens will be transferred to program ATA
 
         #[account(mut)]
-        pub admin: Signer<'info>, // the admin wallet who pays for the account initialization
+        pub admin: Signer<'info>, // the admin wallet  who pays for the account initialization
 
         pub system_program: Program<'info, System>, // Solana system program
-        // Token-2022 Update: Using Interface<TokenInterface> instead of Program<Token>
-        // This allows the contract to work with BOTH Token-2022 AND legacy SPL tokens
-        pub token_program: Interface<'info, TokenInterface>, // Token program (supports both versions)
+        pub token_program: Program<'info, Token>,   // SPL token program
         pub rent: Sysvar<'info, Rent>, // calculates the rent cost for account initialization
     }
 
@@ -212,7 +197,7 @@ pub mod ico {
     pub struct DepositeIcoATA<'info> {
         #[account(mut)]
         // mut means this account will be modified , because tokens will be added to it
-        pub ico_ata_for_ico_program: InterfaceAccount<'info, TokenAccount>,
+        pub ico_ata_for_ico_program: Account<'info, TokenAccount>,
 
         #[account(mut)]
         pub data: Account<'info, Data>,
@@ -220,15 +205,14 @@ pub mod ico {
         #[account(
             address = ICO_MINT_ADDRESS.parse::<Pubkey>().unwrap(),  //Ensure the account passed here MATCHES this specific hardcoded address.
         )]
-        pub ico_mint: InterfaceAccount<'info, Mint>,
+        pub ico_mint: Account<'info, Mint>,
 
         #[account(mut)]
-        pub ico_ata_for_admin: InterfaceAccount<'info, TokenAccount>,
+        pub ico_ata_for_admin: Account<'info, TokenAccount>,
 
         #[account(mut)]
         pub admin: Signer<'info>,
-        // Token-2022 Update: Interface<TokenInterface> for token program compatibility
-        pub token_program: Interface<'info, TokenInterface>,
+        pub token_program: Program<'info, Token>,
     }
 
     #[derive(Accounts)]
@@ -240,7 +224,7 @@ pub mod ico {
             seeds=[ ico_mint.key().as_ref() ], //reverifying to stop Phishing
             bump=ico_ata_for_ico_program_bump
         )]
-        pub ico_ata_for_ico_program: InterfaceAccount<'info, TokenAccount>,
+        pub ico_ata_for_ico_program: Account<'info, TokenAccount>,
 
         #[account(mut)]
         pub data: Account<'info, Data>,
@@ -256,22 +240,20 @@ pub mod ico {
 
             address = ICO_MINT_ADDRESS.parse::<Pubkey>().unwrap(),
         )]
-        pub ico_mint: InterfaceAccount<'info, Mint>, //verifying if the token being bought to the actual buyer
+        pub ico_mint: Account<'info, Mint>, //verifying if the token being bought to the actual buyer
 
         #[account(mut)]
-        pub ico_ata_for_user: InterfaceAccount<'info, TokenAccount>, //customer's ATA where bought tokens will be sent , it will be changed thats why mut is needed
+        pub ico_ata_for_user: Account<'info, TokenAccount>, //customer's ATA where bought tokens will be sent , it will be changed thats why mut is needed
 
         #[account(mut)]
         pub user: Signer<'info>, //ensures the person calling the function actually owns this wallet , mut because account balance will get subtract to pay the admin+gas fee
 
         //CHECK
-        //CHECK: Admin account for receiving SOL payments
         #[account(mut)]
         pub admin: AccountInfo<'info>,
 
-        // Token-2022 Update: Interface<TokenInterface> for token program compatibility
-        pub token_program: Interface<'info, TokenInterface>, // moves the tokens
-        pub system_program: Program<'info, System>, // moves the SOL
+        pub token_program: Program<'info, Token>, //moves the tokens
+        pub system_program: Program<'info, System>, //moves the SOL
     }
 
     #[account]

@@ -1,20 +1,199 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-html,
-body {
-  padding: 0;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap');
 
 * {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
+}
+
+:root {
+  /* iOS Terminal Green Theme */
+  --terminal-bg: #0a0e0a;
+  --terminal-green: #00ff41;
+  --terminal-green-dim: #00cc33;
+  --terminal-green-bright: #39ff14;
+  --terminal-green-glow: rgba(0, 255, 65, 0.3);
+  --terminal-dark: #001a00;
+  --terminal-border: #003300;
+  --terminal-shadow: rgba(0, 255, 65, 0.5);
+  --error-red: #ff3333;
+  --warning-yellow: #ffff00;
+  --info-cyan: #00ffff;
+}
+
+body {
+  font-family: 'Share Tech Mono', 'VT323', monospace;
+  background: var(--terminal-bg);
+  color: var(--terminal-green);
+  overflow-x: hidden;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Scanline Effect */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 9999;
+  animation: scanline 8s linear infinite;
+}
+
+@keyframes scanline {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(10px); }
+}
+
+/* CRT Flicker */
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(18, 16, 16, 0.1);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9998;
+  animation: flicker 0.15s infinite;
+}
+
+@keyframes flicker {
+  0% { opacity: 0.27861; }
+  5% { opacity: 0.34769; }
+  10% { opacity: 0.23604; }
+  15% { opacity: 0.90626; }
+  20% { opacity: 0.18128; }
+  25% { opacity: 0.83891; }
+  30% { opacity: 0.65583; }
+  35% { opacity: 0.67807; }
+  40% { opacity: 0.26559; }
+  45% { opacity: 0.84693; }
+  50% { opacity: 0.96019; }
+  55% { opacity: 0.08594; }
+  60% { opacity: 0.20313; }
+  65% { opacity: 0.71988; }
+  70% { opacity: 0.53455; }
+  75% { opacity: 0.37288; }
+  80% { opacity: 0.71428; }
+  85% { opacity: 0.70419; }
+  90% { opacity: 0.7003; }
+  95% { opacity: 0.36108; }
+  100% { opacity: 0.24387; }
+}
+
+/* Terminal Glow */
+.terminal-glow {
+  text-shadow: 
+    0 0 5px var(--terminal-green-glow),
+    0 0 10px var(--terminal-green-glow),
+    0 0 20px var(--terminal-green-glow);
+}
+
+/* Blink Animation */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.blink {
+  animation: blink 1s infinite;
+}
+
+/* Typing Animation */
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.typing {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid var(--terminal-green);
+  animation: typing 2s steps(40, end), blink 0.75s step-end infinite;
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Glitch Effect */
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+.glitch {
+  animation: glitch 0.3s infinite;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--terminal-dark);
+  border: 1px solid var(--terminal-border);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--terminal-green-dim);
+  border: 1px solid var(--terminal-green);
+  box-shadow: 0 0 10px var(--terminal-green-glow);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--terminal-green);
+}
+
+/* Selection */
+::selection {
+  background: var(--terminal-green);
+  color: var(--terminal-bg);
+}
+
+/* Utility Classes */
+.text-error {
+  color: var(--error-red);
+  text-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+}
+
+.text-warning {
+  color: var(--warning-yellow);
+  text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+}
+
+.text-info {
+  color: var(--info-cyan);
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
 }
